@@ -5,6 +5,7 @@
   "main": "build/main/index.js",
   "typings": "build/main/index.d.ts",
   "module": "build/module/index.js",
+  "type": "module",
   "repository": "https://github.com/yanglinshu/sveltoy",
   "license": "MIT",
   "keywords": [],
