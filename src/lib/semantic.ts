@@ -4,12 +4,22 @@ import * as periscopic from 'periscopic';
 
 import { SvelteAST, SvelteElement } from './ast.js';
 
-export interface SvelteSemantic {
-  globals: Set<string>;
-  reactive: Set<string>;
-  referred: Set<string>;
-  root: periscopic.Scope;
-  map: WeakMap<estree.Node, periscopic.Scope>;
+export class SvelteSemantic {
+  constructor(
+    public readonly globals: Set<string>,
+    public readonly reactive: Set<string>,
+    public readonly referred: Set<string>,
+    public readonly root: periscopic.Scope,
+    public readonly map: WeakMap<estree.Node, periscopic.Scope>
+  ) {}
+
+  public dump() {
+    return {
+      globals: [...this.globals],
+      reactive: [...this.reactive],
+      referred: [...this.referred],
+    };
+  }
 }
 
 export default class SemanticAnalyser {
@@ -34,13 +44,7 @@ export default class SemanticAnalyser {
         (referred = new Set([...referred, ...traverseHTMLAST(element)]))
     );
 
-    return {
-      globals,
-      reactive,
-      referred,
-      root: rootScope,
-      map,
-    };
+    return new SvelteSemantic(globals, reactive, referred, rootScope, map);
   }
 }
 

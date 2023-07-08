@@ -1,0 +1,15 @@
+{
+  "globals": [
+    "counter",
+    "increment",
+    "decrement"
+  ],
+  "reactive": [
+    "counter"
+  ],
+  "referred": [
+    "decrement",
+    "counter",
+    "increment"
+  ]
+}

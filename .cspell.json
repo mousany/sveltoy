@@ -27,7 +27,8 @@
     "estreewalker",
     "domhandler",
     "escodegen",
-    "cgen"
+    "cgen",
+    "sveltoy"
   ],
   "flagWords": [],
   "ignorePaths": [
