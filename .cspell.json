@@ -26,7 +26,8 @@
     "estree",
     "estreewalker",
     "domhandler",
-    "escodegen"
+    "escodegen",
+    "cgen"
   ],
   "flagWords": [],
   "ignorePaths": [
