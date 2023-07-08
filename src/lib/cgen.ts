@@ -115,12 +115,12 @@ export default class CodeGenerator {
         `${nodeName}.removeEventListener('${eventName}', ${handlerName})`
       );
     } else {
-      const value = escodegen.generate(attribute.value as JSNode);
+      const value =
+        typeof attribute.value === 'string'
+          ? attribute.value
+          : escodegen.generate(attribute.value as JSNode);
       this.createStmts.push(
-        `${nodeName}.setAttribute('${attribute.name}', ${value})`
-      );
-      this.updateStmts.push(
-        `${nodeName}.setAttribute('${attribute.name}', ${value})`
+        `${nodeName}.setAttribute('${attribute.name}', '${value}')`
       );
     }
   }
