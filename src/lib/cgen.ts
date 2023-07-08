@@ -4,8 +4,14 @@ import * as estree from 'estree';
 import * as estreewalker from 'estree-walker';
 import * as periscopic from 'periscopic';
 
-import { HTMLAttribute, JSNode, SvelteAST, SvelteElement } from './ast';
-import { SvelteSemantic } from './semantic';
+import {
+  extractNames,
+  HTMLAttribute,
+  JSNode,
+  SvelteAST,
+  SvelteElement,
+} from './ast.js';
+import { SvelteSemantic } from './semantic.js';
 
 export default class CodeGenerator {
   private readonly variables: string[] = [];
@@ -77,9 +83,7 @@ export default class CodeGenerator {
       case 'Expression': {
         const variableName = this.mangler.mangle('exp');
         const expression = escodegen.generate(node.expression as JSNode);
-        const identifiers = periscopic.extract_names(
-          node.expression as estree.Expression
-        );
+        const identifiers = extractNames(node.expression as estree.Node);
         this.variables.push(variableName);
         this.createStmts.push(
           `${variableName} = document.createTextNode(${expression})`

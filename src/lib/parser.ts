@@ -102,19 +102,52 @@ function parseDOMElementAttributes(name: string, value: string): HTMLAttribute {
 
 function parseDOMTextNode(element: domhandler.Text): SvelteElement {
   const text = element.data.trim();
-  const hasOpenBrace = text.startsWith('{');
-  const hasCloseBrace = text.endsWith('}');
-  if (hasOpenBrace && hasCloseBrace) {
+
+  // split text into expressions and text
+  const fragments = text.split(/({[^{}]*})/g);
+
+  const hasExpression = fragments.some((frag) => {
+    return frag.startsWith('{') || frag.endsWith('}');
+  });
+
+  if (hasExpression) {
+    const children: SvelteElement[] = [];
+
+    for (const frag of fragments) {
+      if (!frag) {
+        continue;
+      }
+      const hasOpenBrace = frag.startsWith('{');
+      const hasCloseBrace = frag.endsWith('}');
+      if (hasOpenBrace && hasCloseBrace) {
+        children.push({
+          type: 'Expression',
+          expression: acorn.parseExpressionAt(
+            frag.slice(1, frag.length - 1),
+            0,
+            {
+              ecmaVersion: 2022,
+            }
+          ),
+        });
+      } else if (hasOpenBrace) {
+        throw new ParseError(`Unmatched opening brace in text: ${text}`);
+      } else if (hasCloseBrace) {
+        throw new ParseError(`Unmatched closing brace in text: ${text}`);
+      } else {
+        children.push({
+          type: 'Text',
+          text: frag,
+        } as SvelteElement);
+      }
+    }
+
     return {
-      type: 'Expression',
-      expression: acorn.parseExpressionAt(text.slice(1, text.length - 1), 0, {
-        ecmaVersion: 2022,
-      }),
+      type: 'Element',
+      name: 'div',
+      attributes: [],
+      children,
     };
-  } else if (hasOpenBrace) {
-    throw new ParseError(`Unmatched opening brace in text: ${text}`);
-  } else if (hasCloseBrace) {
-    throw new ParseError(`Unmatched closing brace in text: ${text}`);
   } else {
     return {
       type: 'Text',

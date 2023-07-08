@@ -2,7 +2,7 @@ import * as estree from 'estree';
 import * as estreewalker from 'estree-walker';
 import * as periscopic from 'periscopic';
 
-import { SvelteAST, SvelteElement } from './ast.js';
+import { extractNames, SvelteAST, SvelteElement } from './ast.js';
 
 export class SvelteSemantic {
   constructor(
@@ -94,15 +94,13 @@ function traverseHTMLAST(node: SvelteElement) {
         if (typeof attribute.value != 'string') {
           referred = new Set([
             ...referred,
-            ...periscopic.extract_names(attribute.value as estree.Expression),
+            ...extractNames(attribute.value as estree.Node),
           ]);
         }
       });
       break;
     case 'Expression':
-      referred = new Set(
-        periscopic.extract_names(node.expression as estree.Expression)
-      );
+      referred = new Set(extractNames(node.expression as estree.Node));
       break;
   }
   return referred;
