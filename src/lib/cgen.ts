@@ -100,7 +100,7 @@ export default class CodeGenerator {
             return `${acc} || changed.includes('${ident}')`;
           }, `changed.includes('${reactive[0]}')`);
           this.updateStmts.push(
-            `if (${updateCondition}) ${variableName}.textContent = ${expression}`
+            `if (${updateCondition}) ${variableName}.textContent = JSON.stringify(${expression})`
           );
         }
         break;
@@ -140,17 +140,23 @@ export default class CodeGenerator {
         }
         if (node.type === 'UpdateExpression') {
           const argument = node.argument as estree.Identifier;
-          if (outerThis.shouldLifecycleUpdate(argument, currentScope)) {
-            this.replace(
-              outerThis.generateLifecycleUpdate(node, argument.name)
-            );
+          const targets = outerThis.findLifecycleUpdateTarget(
+            argument,
+            currentScope
+          );
+          if (targets.length > 0) {
+            this.replace(outerThis.generateLifecycleUpdate(node, targets));
             this.skip();
           }
         }
         if (node.type === 'AssignmentExpression') {
           const left = node.left as estree.Identifier;
-          if (outerThis.shouldLifecycleUpdate(left, currentScope)) {
-            this.replace(outerThis.generateLifecycleUpdate(node, left.name));
+          const targets = outerThis.findLifecycleUpdateTarget(
+            left,
+            currentScope
+          );
+          if (targets.length > 0) {
+            this.replace(outerThis.generateLifecycleUpdate(node, targets));
             this.skip();
           }
         }
@@ -163,24 +169,31 @@ export default class CodeGenerator {
     });
   }
 
-  private shouldLifecycleUpdate(
+  private findLifecycleUpdateTarget(
     node: estree.Identifier,
     currentScope: periscopic.Scope
-  ): boolean {
-    return (
-      currentScope.find_owner(node.name) === this.semantic.root &&
-      this.semantic.referred.has(node.name)
-    );
+  ): string[] {
+    const names = extractNames(node);
+    return names.filter((name) => {
+      return (
+        currentScope.find_owner(name) === this.semantic.root &&
+        this.semantic.reactive.has(name)
+      );
+    });
   }
 
-  private generateLifecycleUpdate(node: estree.Expression, name: string) {
+  private generateLifecycleUpdate(node: estree.Expression, names: string[]) {
     const lifecycleUpdate = {
       type: 'SequenceExpression',
       expressions: [
         node,
-        acorn.parseExpressionAt(`lifecycle.update(['${name}'])`, 0, {
-          ecmaVersion: 2022,
-        }) as estree.Expression,
+        acorn.parseExpressionAt(
+          `lifecycle.update([${names.map((name) => `'${name}', `)}])`,
+          0,
+          {
+            ecmaVersion: 2022,
+          }
+        ) as estree.Expression,
       ],
     } as estree.Node;
     return lifecycleUpdate;

@@ -62,14 +62,20 @@ function traverseScriptAST(
       }
       if (node.type === 'UpdateExpression') {
         const argument = node.argument as estree.Identifier;
-        if (currentScope.find_owner(argument.name) === rootScope) {
-          reactive.add(argument.name);
+        const names = extractNames(argument);
+        for (const name of names) {
+          if (currentScope.find_owner(name) === rootScope) {
+            reactive.add(name);
+          }
         }
       }
       if (node.type === 'AssignmentExpression') {
         const left = node.left as estree.Identifier;
-        if (currentScope.find_owner(left.name) === rootScope) {
-          reactive.add(left.name);
+        const names = extractNames(left);
+        for (const name of names) {
+          if (currentScope.find_owner(name) === rootScope) {
+            reactive.add(name);
+          }
         }
       }
     },
