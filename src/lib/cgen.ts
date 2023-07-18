@@ -31,15 +31,16 @@ export default class CodeGenerator {
     return `
       export default function () {
         ${this.variables.map((variable) => `let ${variable};`).join('\n')}
+        ${[...this.semantic.assignees].map((item) => `let ${item};`).join('\n')}
         ${escodegen.generate(this.ast.script)}
         const lifecycle = {
-          create(target) {
+          create: function(target) {
             ${this.createStmts.join('\n')}
           },
-          update(changed) {
+          update: function(changed) {
             ${this.updateStmts.join('\n')}
           },
-          destroy(target) {
+          destroy: function(target) {
             ${this.destroyStmts.join('\n')}
           },
         }
@@ -82,11 +83,11 @@ export default class CodeGenerator {
       }
       case 'Expression': {
         const variableName = this.mangler.mangle('exp');
-        const expression = escodegen.generate(node.expression as JSNode);
+        const updateExpression = escodegen.generate(node.expression as JSNode);
         const identifiers = extractNames(node.expression as estree.Node);
         this.variables.push(variableName);
         this.createStmts.push(
-          `${variableName} = document.createTextNode(${expression})`
+          `${variableName} = document.createTextNode(${updateExpression})`
         );
         this.createStmts.push(`${parentNodeName}.appendChild(${variableName})`);
         this.destroyStmts.push(
@@ -96,11 +97,12 @@ export default class CodeGenerator {
           this.semantic.reactive.has(ident)
         );
         if (reactive.length > 0) {
-          const updateCondition = reactive.slice(1).reduce((acc, ident) => {
+          const updateCondition = generateLifecycleUpdateCondition(reactive);
+          reactive.slice(1).reduce((acc, ident) => {
             return `${acc} || changed.includes('${ident}')`;
           }, `changed.includes('${reactive[0]}')`);
           this.updateStmts.push(
-            `if (${updateCondition}) ${variableName}.textContent = JSON.stringify(${expression})`
+            `if (${updateCondition}) ${variableName}.textContent = JSON.stringify(${updateExpression})`
           );
         }
         break;
@@ -145,7 +147,7 @@ export default class CodeGenerator {
             currentScope
           );
           if (targets.length > 0) {
-            this.replace(outerThis.generateLifecycleUpdate(node, targets));
+            this.replace(generateLifecycleUpdate(targets, node));
             this.skip();
           }
         }
@@ -156,7 +158,7 @@ export default class CodeGenerator {
             currentScope
           );
           if (targets.length > 0) {
-            this.replace(outerThis.generateLifecycleUpdate(node, targets));
+            this.replace(generateLifecycleUpdate(targets, node));
             this.skip();
           }
         }
@@ -167,6 +169,25 @@ export default class CodeGenerator {
         }
       },
     });
+
+    for (const { dependencies, assignees, expression } of this.semantic
+      .responsive) {
+      if (dependencies) {
+        const updateCondition = generateLifecycleUpdateCondition([
+          ...dependencies,
+        ]);
+        let updateExpression = escodegen.generate(expression as JSNode);
+        if (assignees) {
+          updateExpression += `; ${escodegen.generate(
+            generateLifecycleUpdate([...assignees])
+          )}; `;
+        }
+        this.createStmts.push(updateExpression);
+        this.updateStmts.push(
+          `if (${updateCondition}) { ${updateExpression} }`
+        );
+      }
+    }
   }
 
   private findLifecycleUpdateTarget(
@@ -181,23 +202,28 @@ export default class CodeGenerator {
       );
     });
   }
+}
 
-  private generateLifecycleUpdate(node: estree.Expression, names: string[]) {
-    const lifecycleUpdate = {
-      type: 'SequenceExpression',
-      expressions: [
-        node,
-        acorn.parseExpressionAt(
-          `lifecycle.update([${names.map((name) => `'${name}', `)}])`,
-          0,
-          {
-            ecmaVersion: 2022,
-          }
-        ) as estree.Expression,
-      ],
-    } as estree.Node;
-    return lifecycleUpdate;
-  }
+function generateLifecycleUpdate(names: string[], prefix?: estree.Expression) {
+  const updateExpression = acorn.parseExpressionAt(
+    `lifecycle.update([${names.map((name) => `'${name}', `)}])`,
+    0,
+    {
+      ecmaVersion: 2022,
+    }
+  ) as estree.Expression;
+
+  const lifecycleUpdate = {
+    type: 'SequenceExpression',
+    expressions: prefix ? [prefix, updateExpression] : [updateExpression],
+  } as estree.Node;
+  return lifecycleUpdate;
+}
+
+function generateLifecycleUpdateCondition(arr: string[]) {
+  return arr.slice(1).reduce((acc, ident) => {
+    return `${acc} || changed.includes('${ident}')`;
+  }, `changed.includes('${arr[0]}')`);
 }
 
 class Mangler {

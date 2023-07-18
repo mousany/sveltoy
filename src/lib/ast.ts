@@ -38,26 +38,19 @@ export function extractIdentifiers(node: estree.Node) {
   let result: estree.Identifier[] = [];
   switch (node.type) {
     case 'BinaryExpression':
-      result = [
-        ...result,
-        ...extractIdentifiers((node as estree.BinaryExpression).left),
-        ...extractIdentifiers((node as estree.BinaryExpression).right),
-      ];
+      result = result.concat(
+        ...extractIdentifiers(node.left),
+        ...extractIdentifiers(node.right)
+      );
       break;
     case 'UnaryExpression':
-      result = [
-        ...result,
-        ...extractIdentifiers((node as estree.UnaryExpression).argument),
-      ];
+      result = result.concat(...extractIdentifiers(node.argument));
       break;
     case 'UpdateExpression':
-      result = [
-        ...result,
-        ...extractIdentifiers((node as estree.UpdateExpression).argument),
-      ];
+      result = result.concat(...extractIdentifiers(node.argument));
       break;
     default:
-      result = [...result, ...periscopic.extract_identifiers(node)];
+      result = result.concat(...periscopic.extract_identifiers(node));
   }
   return result;
 }
